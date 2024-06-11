@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../axis/axis.dart';
 import '../behaviors/trackball.dart';
 import '../common/callbacks.dart';
 import '../common/chart_point.dart';
@@ -12,18 +11,151 @@ import '../utils/helper.dart';
 import '../utils/typedef.dart';
 import 'technical_indicator.dart';
 
-/// Renders EMA indicator
+/// Renders weighted moving average (WMA) indicator.
 ///
-/// An EMA indicator is a simple, arithmetic moving average that is calculated
-/// by adding the closing price for the number of time periods and dividing
-/// the total value by the number of periods.
+/// A weighted moving average (WMA) is an arithmetic moving average calculated by
+/// adding recent closing prices and then dividing the total by the number of
+/// time periods in the calculation average.
 ///
-/// It also has the [valueField] property. Based on this property indicator
+/// It also has a [valueField] property. Based on this property, the indicator
 /// will be rendered.
+///
+/// The indicator elements are:
+///
+/// * The [dataSource], which is used provide data for the technical indicators without any series.
+/// * The [xValueMapper], which is a value mapper to map the x values with the technical indicator.
+/// * The [highValueMapper], which is a value mapper to map the high values with the technical indicator.
+/// * The [lowValueMapper], which is a value mapper to map the low values with the technical indicator.
+/// * The [openValueMapper], which is a value mapper to map the open values with the technical indicator.
+/// * The [closeValueMapper], which is a value mapper to map the close values with the technical indicator.
+/// * The [xAxisName] and [yAxisName], which is used map the technical indicator with the multiple axes.
+/// * The [seriesName], which is used map the technical indicator with the series based on names.
+/// * The [valueField], which is used to determines the field for the rendering of WMA indicator.
+/// * The [period], which is used determines the start point for the rendering of technical indicator.
+///
+/// ## Formula
+///
+/// Data (Closing Prices for Each Day):
+///
+/// *  Day 1: $100
+/// *  Day 2: $105
+/// *  Day 3: $110
+/// *  Day 4: $120
+/// *  Day 5: $103
+/// *  ...
+/// *  Day 15: $110
+/// *  Day 16: $108
+/// *  …
+/// *  Day 29: $110
+/// *  Day 30: $120
+///
+///
+/// Calculation of WMA:
+/// *  WMA for single data = currentPrice * (n/ sum of period);
+/// *  The equation we use for weighing each number is the day number divided by the sum of
+///  all day numbers.  Since we are looking at five days, the sum of all day numbers in this example
+///  is 15 (i.e., 5 + 4 + 3 + 2 + 1).
+///
+/// *  WMA on Period 3:
+/// *  If we need to calculate the 3rd day WMA means, current value is 110, period 3 days sum is 6 (3+2+1), then
+/// *  100 * (1/6) = 6.25
+/// *  105 * (2/6) = 17.5
+/// *  110 * (3/6) = 18.33
+///
+/// *  WMA on Period 16:
+/// *  If we need to calculate the 16th day WMA means, current value is 108, previous 16-day sum is
+/// 136 (16+15+14+13+...+1).
+/// *  Day1: 100 * (1/136) = 0.7
+/// *  ....
+/// *  Day 16: 108 * (16/136) = 12.070
+///
+/// ## Example
+///
+/// This snippet shows how to create a [WmaIndicator] by mapping the series data source.
+///
+/// ```dart
+///
+///  @override
+///  Widget build(BuildContext context) {
+///    return MaterialApp(
+///      home: Scaffold(
+///        body: Center(
+///          child: SfCartesianChart(
+///            primaryXAxis: const DateTimeAxis(),
+///            primaryYAxis: const NumericAxis(),
+///            axes: const <ChartAxis>[
+///              NumericAxis(
+///                majorGridLines: MajorGridLines(width: 0),
+///                opposedPosition: true,
+///                name: 'yAxis',
+///              ),
+///            ],
+///            indicators: <TechnicalIndicator<ChartSampleData, DateTime>>[
+///              WmaIndicator<ChartSampleData, DateTime>(
+///                seriesName: 'AAPL',
+///                yAxisName: 'yAxis',
+///                period: 15,
+///              ),
+///            ],
+///            series: <CartesianSeries<ChartSampleData, DateTime>>[
+///              HiloOpenCloseSeries<ChartSampleData, DateTime>(
+///                dataSource: getChartData(),
+///                xValueMapper: (ChartSampleData sales, _) => sales.x as DateTime,
+///                lowValueMapper: (ChartSampleData sales, _) => sales.low,
+///                highValueMapper: (ChartSampleData sales, _) => sales.high,
+///                openValueMapper: (ChartSampleData sales, _) => sales.open,
+///                closeValueMapper: (ChartSampleData sales, _) => sales.close,
+///                name: 'AAPL',
+///              ),
+///            ],
+///          ),
+///        ),
+///      ),
+///    );
+///  }
+/// ```
+/// This snippet shows how to create a [WmaIndicator] using a direct data source.
+///
+/// ```dart
+///
+///  @override
+///  Widget build(BuildContext context) {
+///    return MaterialApp(
+///      home: Scaffold(
+///        body: Center(
+///          child: SfCartesianChart(
+///            primaryXAxis: const DateTimeAxis(),
+///            primaryYAxis: const NumericAxis(),
+///            axes: const <ChartAxis>[
+///              NumericAxis(
+///                majorGridLines: MajorGridLines(width: 0),
+///                opposedPosition: true,
+///                name: 'yAxis',
+///              ),
+///            ],
+///            indicators: <TechnicalIndicator<ChartSampleData, DateTime>>[
+///              WmaIndicator<ChartSampleData, DateTime>(
+///                dataSource: getChartData(),
+///                xValueMapper: (ChartSampleData sales, _) => sales.x as DateTime,
+///                lowValueMapper: (ChartSampleData sales, _) => sales.low,
+///                highValueMapper: (ChartSampleData sales, _) => sales.high,
+///                openValueMapper: (ChartSampleData sales, _) => sales.open,
+///                closeValueMapper: (ChartSampleData sales, _) => sales.close,
+///                yAxisName: 'yAxis',
+///                period: 15,
+///              ),
+///            ],
+///          ),
+///        ),
+///      ),
+///    );
+///  }
+/// ```
+///
 @immutable
-class EmaIndicator<T, D> extends TechnicalIndicator<T, D> {
-  /// Creating an argument constructor of EmaIndicator class.
-  EmaIndicator({
+class WmaIndicator<T, D> extends TechnicalIndicator<T, D> {
+  /// Creating an argument constructor of WmaIndicator class.
+  WmaIndicator({
     super.isVisible,
     super.xAxisName,
     super.yAxisName,
@@ -64,10 +196,9 @@ class EmaIndicator<T, D> extends TechnicalIndicator<T, D> {
               : null,
         );
 
-  /// Value field property for EMA indicator.
+  /// Value field value for WMA indicator.
   ///
-  /// Based on the value field property, the moving average is calculated
-  /// and the indicator is rendered.
+  /// Value field determines the field for the rendering of WMA indicator.
   ///
   /// Defaults to `close`.
   ///
@@ -75,7 +206,7 @@ class EmaIndicator<T, D> extends TechnicalIndicator<T, D> {
   /// Widget build(BuildContext context) {
   ///  return SfCartesianChart(
   ///    indicators: <TechnicalIndicator<Sample, num>>[
-  ///      EmaIndicator<Sample, num>(
+  ///      WmaIndicator<Sample, num>(
   ///        seriesName: 'Series1'
   ///        period: 4,
   ///        valueField: 'low'
@@ -100,7 +231,7 @@ class EmaIndicator<T, D> extends TechnicalIndicator<T, D> {
   /// Widget build(BuildContext context) {
   ///  return SfCartesianChart(
   ///    indicators: <TechnicalIndicator<Sample, num>>[
-  ///      EmaIndicator<Sample, num>(
+  ///      WmaIndicator<Sample, num>(
   ///        period : 4
   ///      ),
   ///    ],
@@ -118,7 +249,7 @@ class EmaIndicator<T, D> extends TechnicalIndicator<T, D> {
       return false;
     }
 
-    return other is EmaIndicator &&
+    return other is WmaIndicator &&
         other.isVisible == isVisible &&
         other.xAxisName == xAxisName &&
         other.yAxisName == yAxisName &&
@@ -171,11 +302,11 @@ class EmaIndicator<T, D> extends TechnicalIndicator<T, D> {
   }
 
   @override
-  String toString() => 'EMA';
+  String toString() => 'WMA';
 }
 
-class EmaIndicatorWidget extends IndicatorWidget {
-  const EmaIndicatorWidget({
+class WmaIndicatorWidget extends IndicatorWidget {
+  const WmaIndicatorWidget({
     super.key,
     required super.vsync,
     required super.isTransposed,
@@ -185,45 +316,42 @@ class EmaIndicatorWidget extends IndicatorWidget {
     super.onLegendItemRender,
   });
 
-  // Create the EmaIndicatorRenderer renderer.
+  // Create the WmaIndicatorRenderer renderer.
   @override
-  EmaIndicatorRenderer createRenderer() {
-    return EmaIndicatorRenderer();
+  WmaIndicatorRenderer createRenderer() {
+    return WmaIndicatorRenderer();
   }
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    final EmaIndicatorRenderer renderer =
-        super.createRenderObject(context) as EmaIndicatorRenderer;
-    final EmaIndicator ema = indicator as EmaIndicator;
-
-    renderer
-      ..highValueMapper = ema.highValueMapper
-      ..lowValueMapper = ema.lowValueMapper
-      ..openValueMapper = ema.openValueMapper
-      ..closeValueMapper = ema.closeValueMapper
-      ..valueField = ema.valueField
-      ..period = ema.period;
-    return renderer;
+    final WmaIndicatorRenderer renderer =
+        super.createRenderObject(context) as WmaIndicatorRenderer;
+    final WmaIndicator wma = indicator as WmaIndicator;
+    return renderer
+      ..highValueMapper = wma.highValueMapper
+      ..lowValueMapper = wma.lowValueMapper
+      ..openValueMapper = wma.openValueMapper
+      ..closeValueMapper = wma.closeValueMapper
+      ..valueField = wma.valueField
+      ..period = wma.period;
   }
 
   @override
   void updateRenderObject(
-      BuildContext context, EmaIndicatorRenderer renderObject) {
+      BuildContext context, WmaIndicatorRenderer renderObject) {
     super.updateRenderObject(context, renderObject);
-    final EmaIndicator ema = indicator as EmaIndicator;
-
+    final WmaIndicator wma = indicator as WmaIndicator;
     renderObject
-      ..highValueMapper = ema.highValueMapper
-      ..lowValueMapper = ema.lowValueMapper
-      ..openValueMapper = ema.openValueMapper
-      ..closeValueMapper = ema.closeValueMapper
-      ..valueField = ema.valueField
-      ..period = ema.period;
+      ..highValueMapper = wma.highValueMapper
+      ..lowValueMapper = wma.lowValueMapper
+      ..openValueMapper = wma.openValueMapper
+      ..closeValueMapper = wma.closeValueMapper
+      ..valueField = wma.valueField
+      ..period = wma.period;
   }
 }
 
-class EmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
+class WmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   late List<double>? _dashArray;
 
   final List<Offset> _signalLineActualValues = <Offset>[];
@@ -232,11 +360,6 @@ class EmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   List<num> _lowValues = <num>[];
   List<num> _openValues = <num>[];
   List<num> _closeValues = <num>[];
-
-  num xMinimum = double.infinity;
-  num xMaximum = double.negativeInfinity;
-  num yMinimum = double.infinity;
-  num yMaximum = double.negativeInfinity;
 
   String get valueField => _valueField;
   String _valueField = 'Close';
@@ -266,17 +389,17 @@ class EmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   ]) {
     if (dataSource != null) {
       super.populateDataSource(
-          dataSource, xValueMapper, xValues, <ChartIndexedValueMapper<num?>?>[
-        highValueMapper,
-        lowValueMapper,
-        openValueMapper,
-        closeValueMapper
-      ], <List<num>>[
-        _highValues,
-        _lowValues,
-        _openValues,
-        _closeValues
-      ]);
+        dataSource,
+        xValueMapper,
+        xValues,
+        <ChartIndexedValueMapper<num?>?>[
+          highValueMapper,
+          lowValueMapper,
+          openValueMapper,
+          closeValueMapper
+        ],
+        <List<num>>[_highValues, _lowValues, _openValues, _closeValues],
+      );
     } else {
       if (seriesName != null) {
         if (dependent is FinancialSeriesRendererBase<T, D>) {
@@ -294,58 +417,49 @@ class EmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
       }
     }
 
-    _signalLineActualValues.clear();
-    _yValues.clear();
-    if (dataCount >= period && period > 0 && signalLineWidth > 0) {
-      _calculateSignalLineValues();
-    }
-
+    _calculateSignalLineValues();
     populateChartPoints();
   }
 
   void _calculateSignalLineValues() {
-    num xMinimum = double.infinity;
-    num xMaximum = double.negativeInfinity;
-    num yMinimum = double.infinity;
-    num yMaximum = double.negativeInfinity;
+    _signalLineActualValues.clear();
+    _yValues.clear();
 
-    num sum = 0;
-    final num value = 2 / (period + 1);
-    for (int i = 0; i < period; i++) {
-      sum += _fieldValue(i, valueField);
+    if (xValues.isNotEmpty &&
+        dataCount >= period &&
+        period > 0 &&
+        signalLineWidth > 0) {
+      num xMinimum = double.infinity;
+      num xMaximum = double.negativeInfinity;
+      num yMinimum = double.infinity;
+      num yMaximum = double.negativeInfinity;
+
+      // Calculate the total sum of periods.
+      int sumOfPeriods = 0;
+      for (int i = 0; i <= period; i++) {
+        sumOfPeriods += i;
+      }
+
+      for (int i = period - 1; i < dataCount; i++) {
+        double weightedSum = 0.0;
+        for (int j = 0; j < period; j++) {
+          weightedSum += _fieldValue(i, valueField) * (j + 1);
+        }
+
+        final double x = xValues[i].toDouble();
+        final double y = (weightedSum / sumOfPeriods).toDouble();
+        xMinimum = min(xMinimum, x);
+        xMaximum = max(xMaximum, x);
+        yMinimum = min(yMinimum, y);
+        yMaximum = max(yMaximum, y);
+        _signalLineActualValues.add(Offset(x, y));
+      }
+
+      xMin = xMinimum.isInfinite ? xMin : xMinimum;
+      xMax = xMaximum.isInfinite ? xMax : xMaximum;
+      yMin = yMinimum.isInfinite ? yMin : yMinimum;
+      yMax = yMaximum.isInfinite ? yMax : yMaximum;
     }
-
-    final double x = xValues[period - 1].toDouble();
-    final double y = (sum / period).toDouble();
-    xMinimum = min(xMinimum, x);
-    xMaximum = max(xMaximum, x);
-    yMinimum = min(yMinimum, y);
-    yMaximum = max(yMaximum, y);
-    _signalLineActualValues.add(Offset(x, y));
-
-    int index = period;
-    while (index < dataCount) {
-      final num previousAverage = _signalLineActualValues[index - period].dy;
-      final num yValue =
-          (_fieldValue(index, valueField) - previousAverage) * value +
-              previousAverage;
-      _yValues.add(yValue);
-
-      final double x = xValues[index].toDouble();
-      final double y = yValue.toDouble();
-      xMinimum = min(xMinimum, x);
-      xMaximum = max(xMaximum, x);
-      yMinimum = min(yMinimum, y);
-      yMaximum = max(yMaximum, y);
-      _signalLineActualValues.add(Offset(x, y));
-
-      index++;
-    }
-
-    xMin = xMinimum.isInfinite ? xMin : xMinimum;
-    xMax = xMaximum.isInfinite ? xMax : xMaximum;
-    yMin = yMinimum.isInfinite ? yMin : yMinimum;
-    yMax = yMaximum.isInfinite ? yMax : yMaximum;
   }
 
   num _fieldValue(int index, String valueField) {
@@ -380,19 +494,10 @@ class EmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   }
 
   @override
-  String defaultLegendItemText() => 'EMA';
+  String defaultLegendItemText() => 'WMA';
 
   @override
   Color effectiveLegendIconColor() => signalLineColor;
-
-  @override
-  DoubleRange range(RenderChartAxis axis) {
-    if (axis == xAxis) {
-      return DoubleRange(xMinimum, xMaximum);
-    } else {
-      return DoubleRange(yMinimum, yMaximum);
-    }
-  }
 
   @override
   void transformValues() {
@@ -504,14 +609,15 @@ class EmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
 
   @override
   void onPaint(PaintingContext context, Offset offset) {
+    context.canvas.save();
+    final Rect clip = clipRect(paintBounds, animationFactor,
+        isInversed: xAxis!.isInversed, isTransposed: isTransposed);
+    context.canvas.clipRect(clip);
+
     if (signalLinePoints.isNotEmpty) {
-      context.canvas.save();
-      final Rect clip = clipRect(paintBounds, animationFactor,
-          isInversed: xAxis!.isInversed, isTransposed: isTransposed);
-      context.canvas.clipRect(clip);
-      final int length = signalLinePoints.length - 1;
       if (strokePaint.color != Colors.transparent &&
           strokePaint.strokeWidth > 0) {
+        final int length = signalLinePoints.length - 1;
         for (int i = 0; i < length; i++) {
           drawDashes(
             context.canvas,
@@ -522,19 +628,19 @@ class EmaIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
           );
         }
       }
-
-      context.canvas.restore();
     }
+
+    context.canvas.restore();
   }
 
   @override
   void dispose() {
-    _signalLineActualValues.clear();
-    _yValues.clear();
     _highValues.clear();
     _lowValues.clear();
     _openValues.clear();
     _closeValues.clear();
+    _yValues.clear();
+    _signalLineActualValues.clear();
     super.dispose();
   }
 }

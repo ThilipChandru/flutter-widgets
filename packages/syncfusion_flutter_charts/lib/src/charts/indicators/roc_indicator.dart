@@ -12,18 +12,144 @@ import '../utils/helper.dart';
 import '../utils/typedef.dart';
 import 'technical_indicator.dart';
 
-/// Renders the momentum indicator.
+/// Renders the ROC indicator.
 ///
-/// This class renders the momentum indicator, it also has a center line.
-/// The [centerLineColor] and [centerLineWidth] property is used to
-/// define center line.
+/// It's commonly used in technical analysis to identify trends and potential reversal points,
+/// and it suggests increasing momentum in the direction of the trend. A positive ROC indicates
+/// that the price is increasing, a negative ROC indicates that the price is decreasing, and
+/// the magnitude of the ROC indicates the strength of the price change.
 ///
-/// Provides the options for visibility, center line color, center line width,
-/// and period values to customize the appearance.
+/// The indicator elements are:
+///
+/// * The [dataSource], which is used provide data for the technical indicators without any series.
+/// * The [xValueMapper], which is a value mapper to map the x values with the technical indicator.
+/// * The [highValueMapper], which is a value mapper to map the high values with the technical indicator.
+/// * The [lowValueMapper], which is a value mapper to map the low values with the technical indicator.
+/// * The [openValueMapper], which is a value mapper to map the open values with the technical indicator.
+/// * The [closeValueMapper], which is a value mapper to map the close values with the technical indicator.
+/// * The [xAxisName] and [yAxisName], which is used map the technical indicator with the multiple axes.
+/// * The [seriesName], which is used map the technical indicator with the series based on names.
+/// * The [centerLineColor] and [centerLineWidth], which is used to customize center line color and its width.
+/// * The [period], which is used determines the start point for the rendering of technical indicator.
+///
+/// ## Formula
+///
+/// Data (Closing Prices for Each Day):
+///
+/// *  Day 1: $100
+/// *  Day 2: $105
+/// *  Day 3: $110
+/// *  Day 4: $120
+/// *  Day 5: $103
+/// *  ...
+/// *  Day 15: $110
+/// *  Day 16: $108
+/// *  …
+/// *  Day 29: $110
+/// *  Day 30: $120
+///
+///
+/// Calculation of ROC:
+/// *  ROC = ((currentPrice - priceNPeriodsAgo) / priceNPeriodsAgo) * 100;
+///
+/// *  ROC on Day 3:
+/// *  If we need to calculate the 3rd day ROC, the current value is 110, and previous 2nd day value is 105
+/// (110-105/105) × 100 = 4.76%
+///
+/// *  ROC on Day 16:
+/// *  If we need to calculate the 16th day ROC, the current value is 108, the previous 15th day value is 110
+/// (108-110/110) × 100 = -1.8%
+///
+/// *  ROC on Day 30:
+/// *  (120−110/110) × 100 = 9.09%
+///
+/// ## Example
+///
+/// This snippet shows how to create a [RocIndicator] by mapping the series data source.
+///
+/// ```dart
+///
+///  @override
+///  Widget build(BuildContext context) {
+///    return MaterialApp(
+///      home: Scaffold(
+///        body: Center(
+///          child: SfCartesianChart(
+///            primaryXAxis: const DateTimeAxis(),
+///            primaryYAxis: const NumericAxis(),
+///            axes: const <ChartAxis>[
+///              NumericAxis(
+///                majorGridLines: MajorGridLines(width: 0),
+///                opposedPosition: true,
+///                name: 'yAxis',
+///              ),
+///            ],
+///            indicators: <TechnicalIndicator<ChartSampleData, DateTime>>[
+///              RocIndicator<ChartSampleData, DateTime>(
+///                seriesName: 'AAPL',
+///                yAxisName: 'yAxis',
+///                period: 15,
+///              ),
+///            ],
+///            series: <CartesianSeries<ChartSampleData, DateTime>>[
+///              HiloOpenCloseSeries<ChartSampleData, DateTime>(
+///                dataSource: getChartData(),
+///                xValueMapper: (ChartSampleData sales, _) => sales.x as DateTime,
+///                lowValueMapper: (ChartSampleData sales, _) => sales.low,
+///                highValueMapper: (ChartSampleData sales, _) => sales.high,
+///                openValueMapper: (ChartSampleData sales, _) => sales.open,
+///                closeValueMapper: (ChartSampleData sales, _) => sales.close,
+///                name: 'AAPL',
+///              ),
+///            ],
+///          ),
+///        ),
+///      ),
+///    );
+///  }
+/// ```
+/// This snippet shows how to create a [RocIndicator] using a direct data source.
+///
+/// ```dart
+///
+///  @override
+///  Widget build(BuildContext context) {
+///    return MaterialApp(
+///      home: Scaffold(
+///        body: Center(
+///          child: SfCartesianChart(
+///            primaryXAxis: const DateTimeAxis(),
+///            primaryYAxis: const NumericAxis(),
+///            axes: const <ChartAxis>[
+///              NumericAxis(
+///                majorGridLines: MajorGridLines(width: 0),
+///                opposedPosition: true,
+///                name: 'yAxis',
+///              ),
+///            ],
+///            indicators: <TechnicalIndicator<ChartSampleData, DateTime>>[
+///              RocIndicator<ChartSampleData, DateTime>(
+///                dataSource: getChartData(),
+///                xValueMapper: (ChartSampleData sales, _) => sales.x as DateTime,
+///                lowValueMapper: (ChartSampleData sales, _) => sales.low,
+///                highValueMapper: (ChartSampleData sales, _) => sales.high,
+///                openValueMapper: (ChartSampleData sales, _) => sales.open,
+///                closeValueMapper: (ChartSampleData sales, _) => sales.close,
+///                yAxisName: 'yAxis',
+///                period: 15,
+///              ),
+///            ],
+///          ),
+///        ),
+///      ),
+///    );
+///  }
+/// ```
+///
 @immutable
-class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
-  /// Creating an argument constructor of MomentumIndicator class.
-  MomentumIndicator({
+class RocIndicator<T, D> extends TechnicalIndicator<T, D> {
+  /// Creating an argument constructor of ROCIndicator class.
+  RocIndicator({
     super.isVisible = true,
     super.xAxisName,
     super.yAxisName,
@@ -65,7 +191,7 @@ class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
               : null,
         );
 
-  /// Center line color of the momentum indicator.
+  /// Center line color of the ROC indicator.
   ///
   /// Defaults to `Colors.red`.
   ///
@@ -73,7 +199,7 @@ class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
   /// Widget build(BuildContext context) {
   ///  return SfCartesianChart(
   ///    indicators: <TechnicalIndicator<Sample, num>>[
-  ///      MomentumIndicator<Sample, num>(
+  ///      RocIndicator<Sample, num>(
   ///        seriesName: 'Series1'
   ///        centerLineColor : Colors.green
   ///      ),
@@ -88,7 +214,7 @@ class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
   /// ```
   final Color centerLineColor;
 
-  /// Center line width of the momentum indicator.
+  /// Center line width of the ROC indicator.
   ///
   /// Defaults to `2`.
   ///
@@ -96,7 +222,7 @@ class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
   /// Widget build(BuildContext context) {
   ///  return SfCartesianChart(
   ///    indicators: <TechnicalIndicator<Sample, num>>[
-  ///      MomentumIndicator<Sample, num>(
+  ///      RocIndicator<Sample, num>(
   ///        seriesName: 'Series1'
   ///        centerLineWidth: 3
   ///      ),
@@ -120,7 +246,7 @@ class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
   /// Widget build(BuildContext context) {
   ///  return SfCartesianChart(
   ///    indicators: <TechnicalIndicator<Sample, num>>[
-  ///      MomentumIndicator<Sample, num>(
+  ///      RocIndicator<Sample, num>(
   ///        period : 4
   ///      ),
   ///    ],
@@ -138,7 +264,7 @@ class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
       return false;
     }
 
-    return other is MomentumIndicator &&
+    return other is RocIndicator &&
         other.isVisible == isVisible &&
         other.xAxisName == xAxisName &&
         other.yAxisName == yAxisName &&
@@ -193,11 +319,11 @@ class MomentumIndicator<T, D> extends TechnicalIndicator<T, D> {
   }
 
   @override
-  String toString() => 'Momentum';
+  String toString() => 'ROC';
 }
 
-class MomentumIndicatorWidget extends IndicatorWidget {
-  const MomentumIndicatorWidget({
+class RocIndicatorWidget extends IndicatorWidget {
+  const RocIndicatorWidget({
     super.key,
     required super.vsync,
     required super.isTransposed,
@@ -207,48 +333,46 @@ class MomentumIndicatorWidget extends IndicatorWidget {
     super.onLegendItemRender,
   });
 
-  // Create the MomentumIndicatorRenderer renderer.
+  // Create the RocIndicatorRenderer renderer.
   @override
-  MomentumIndicatorRenderer createRenderer() {
-    return MomentumIndicatorRenderer();
+  RocIndicatorRenderer createRenderer() {
+    return RocIndicatorRenderer();
   }
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    final MomentumIndicatorRenderer renderer =
-        super.createRenderObject(context) as MomentumIndicatorRenderer;
-    final MomentumIndicator momentum = indicator as MomentumIndicator;
-
+    final RocIndicatorRenderer renderer =
+        super.createRenderObject(context) as RocIndicatorRenderer;
+    final RocIndicator roc = indicator as RocIndicator;
     renderer
-      ..highValueMapper = momentum.highValueMapper
-      ..lowValueMapper = momentum.lowValueMapper
-      ..openValueMapper = momentum.openValueMapper
-      ..closeValueMapper = momentum.closeValueMapper
-      ..centerLineColor = momentum.centerLineColor
-      ..centerLineWidth = momentum.centerLineWidth
-      ..period = momentum.period;
+      ..highValueMapper = roc.highValueMapper
+      ..lowValueMapper = roc.lowValueMapper
+      ..openValueMapper = roc.openValueMapper
+      ..closeValueMapper = roc.closeValueMapper
+      ..centerLineColor = roc.centerLineColor
+      ..centerLineWidth = roc.centerLineWidth
+      ..period = roc.period;
 
     return renderer;
   }
 
   @override
   void updateRenderObject(
-      BuildContext context, MomentumIndicatorRenderer renderObject) {
+      BuildContext context, RocIndicatorRenderer renderObject) {
     super.updateRenderObject(context, renderObject);
-    final MomentumIndicator momentum = indicator as MomentumIndicator;
-
+    final RocIndicator roc = indicator as RocIndicator;
     renderObject
-      ..highValueMapper = momentum.highValueMapper
-      ..lowValueMapper = momentum.lowValueMapper
-      ..openValueMapper = momentum.openValueMapper
-      ..closeValueMapper = momentum.closeValueMapper
-      ..centerLineColor = momentum.centerLineColor
-      ..centerLineWidth = momentum.centerLineWidth
-      ..period = momentum.period;
+      ..highValueMapper = roc.highValueMapper
+      ..lowValueMapper = roc.lowValueMapper
+      ..openValueMapper = roc.openValueMapper
+      ..closeValueMapper = roc.closeValueMapper
+      ..centerLineColor = roc.centerLineColor
+      ..centerLineWidth = roc.centerLineWidth
+      ..period = roc.period;
   }
 }
 
-class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
+class RocIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   late List<double>? _dashArray;
 
   final List<Offset> _signalLineActualValues = <Offset>[];
@@ -346,19 +470,20 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
         if (isCenterLineVisible) {
           xMinimum = min(xMinimum, x);
           xMaximum = max(xMaximum, x);
-          yMinimum = min(yMinimum, 100);
-          yMaximum = max(yMaximum, 100);
-          _centerLineActualValues.add(Offset(x, 100));
+          yMinimum = min(yMinimum, 0);
+          yMaximum = max(yMaximum, 0);
+          _centerLineActualValues.add(Offset(x, 0));
         }
 
         if (isSignalLineVisible) {
           if (!(i < period)) {
-            final num value =
-                (_closeValues[i]) / (_closeValues[i - period]) * 100;
-            if (value.isNaN) {
+            final num prevY = _closeValues[i - period];
+            final double y =
+                (((_closeValues[i] - prevY) / prevY) * 100).toDouble();
+            if (y.isNaN) {
               continue;
             }
-            final double y = value.toDouble();
+
             xMinimum = min(xMinimum, x);
             xMaximum = max(xMaximum, x);
             yMinimum = min(yMinimum, y);
@@ -391,7 +516,7 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   }
 
   @override
-  String defaultLegendItemText() => 'Momentum';
+  String defaultLegendItemText() => 'ROC';
 
   @override
   Color effectiveLegendIconColor() => signalLineColor;
@@ -424,26 +549,22 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   List<TrackballInfo>? trackballInfo(Offset position) {
     final List<ChartTrackballInfo<T, D>> trackballInfo =
         <ChartTrackballInfo<T, D>>[];
-    final int momentumPointIndex =
-        _findNearestPoint(signalLinePoints, position);
-    if (momentumPointIndex != -1) {
-      final CartesianChartPoint<D> momentumPoint =
-          _chartPoint(momentumPointIndex, 'momentum');
+    final int rocPointIndex = _findNearestPoint(signalLinePoints, position);
+    if (rocPointIndex != -1) {
+      final CartesianChartPoint<D> rocPoint = _chartPoint(rocPointIndex, 'roc');
       final String text = defaultLegendItemText();
-      trackballInfo.add(
-        ChartTrackballInfo<T, D>(
-          position: signalLinePoints[momentumPointIndex],
-          point: momentumPoint,
-          series: this,
-          pointIndex: momentumPointIndex,
-          segmentIndex: momentumPointIndex,
-          seriesIndex: index,
-          name: text,
-          header: tooltipHeaderText(momentumPoint),
-          text: trackballText(momentumPoint, text),
-          color: signalLineColor,
-        ),
-      );
+      trackballInfo.add(ChartTrackballInfo<T, D>(
+        position: signalLinePoints[rocPointIndex],
+        point: rocPoint,
+        series: this,
+        pointIndex: rocPointIndex,
+        segmentIndex: rocPointIndex,
+        seriesIndex: index,
+        name: text,
+        header: tooltipHeaderText(rocPoint),
+        text: trackballText(rocPoint, text),
+        color: signalLineColor,
+      ));
     }
     final int centerPointIndex = _findNearestPoint(_centerLinePoints, position);
     if (centerPointIndex != -1) {
@@ -507,13 +628,12 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
 
   CartesianChartPoint<D> _chartPoint(int pointIndex, String type) {
     return CartesianChartPoint<D>(
-      x: type == 'momentum'
+      x: type == 'roc'
           ? xRawValues[pointIndex + period - 1]
           : xRawValues[pointIndex],
-      xValue: type == 'momentum'
-          ? xValues[pointIndex + period]
-          : xValues[pointIndex],
-      y: type == 'momentum'
+      xValue:
+          type == 'roc' ? xValues[pointIndex + period] : xValues[pointIndex],
+      y: type == 'roc'
           ? _signalLineActualValues[pointIndex].dy
           : _centerLineActualValues[pointIndex].dy,
     );
@@ -522,8 +642,7 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
   @override
   void customizeIndicator() {
     if (onRenderDetailsUpdate != null) {
-      final MomentumIndicatorRenderParams params =
-          MomentumIndicatorRenderParams(
+      final RocIndicatorRenderParams params = RocIndicatorRenderParams(
         _centerLineActualValues.first.dy,
         chartPoints,
         legendItemText ?? name ?? defaultLegendItemText(),
@@ -547,13 +666,12 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
 
   @override
   void onPaint(PaintingContext context, Offset offset) {
-    int length = signalLinePoints.length - 1;
-
     context.canvas.save();
     final Rect clip = clipRect(paintBounds, animationFactor,
         isInversed: xAxis!.isInversed, isTransposed: isTransposed);
     context.canvas.clipRect(clip);
 
+    int length = signalLinePoints.length - 1;
     if (strokePaint.color != Colors.transparent &&
         strokePaint.strokeWidth > 0) {
       for (int i = 0; i < length; i++) {
@@ -577,7 +695,6 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
       if (paint.color != Colors.transparent && paint.strokeWidth > 0) {
         _centerLinePath.reset();
         length = _centerLinePoints.length;
-
         _centerLinePath.moveTo(
             _centerLinePoints.first.dx, _centerLinePoints.first.dy);
         for (int i = 1; i < length; i++) {
@@ -587,7 +704,6 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
         drawDashes(context.canvas, _dashArray, paint, path: _centerLinePath);
       }
     }
-
     context.canvas.restore();
   }
 
@@ -601,6 +717,7 @@ class MomentumIndicatorRenderer<T, D> extends IndicatorRenderer<T, D> {
     _lowValues.clear();
     _openValues.clear();
     _closeValues.clear();
+    _dashArray = null;
     super.dispose();
   }
 }
